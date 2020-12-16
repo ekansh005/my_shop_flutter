@@ -16,11 +16,32 @@ class _EditProductScreenState extends State<EditProductScreen> {
   final _formKey = GlobalKey<FormState>();
   String id, description, title, imageUrl = '';
   double price = 0;
+  var _initState = true;
+  Product productData;
+  var _isNew = true;
 
   @override
   void initState() {
     _imageUrlFocusNode.addListener(_updateImageUrl);
     super.initState();
+  }
+
+  //we are overwriting this as to fetch arguments using ModalRoute
+  //doesn't work in initState method
+  //this method is also executed before build is executed
+  @override
+  void didChangeDependencies() {
+    if (_initState) {
+      id = ModalRoute.of(context).settings.arguments;
+      if (id != 'new') {
+        productData =
+            Provider.of<Products>(context, listen: false).findById(id);
+        _isNew = false;
+        _imageUrlController.text = productData.imageUrl;
+      }
+    }
+    _initState = false;
+    super.didChangeDependencies();
   }
 
   @override
@@ -49,8 +70,14 @@ class _EditProductScreenState extends State<EditProductScreen> {
       title: title,
       price: price,
       id: id,
+      isFavorite: _isNew ? false : productData.isFavorite,
     );
-    Provider.of<Products>(context, listen: false).addProduct(product);
+    if (_isNew) {
+      Provider.of<Products>(context, listen: false).addProduct(product);
+    } else {
+      Provider.of<Products>(context, listen: false).updateProduct(product);
+    }
+
     Navigator.of(context).pop();
   }
 
@@ -58,7 +85,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Edit Product'),
+        title: _isNew ? Text('Add Product') : Text('Edit Product'),
         actions: [
           IconButton(icon: Icon(Icons.save), onPressed: _saveForm),
         ],
@@ -72,6 +99,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
               TextFormField(
                 decoration: InputDecoration(labelText: 'Title *'),
                 textInputAction: TextInputAction.next,
+                initialValue: _isNew ? '' : productData.title,
                 validator: (value) {
                   if (value.isEmpty) {
                     return 'Title is mandatory';
@@ -86,6 +114,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
                 textInputAction: TextInputAction.next,
                 keyboardType: TextInputType.number,
                 autovalidateMode: AutovalidateMode.onUserInteraction,
+                initialValue: _isNew ? '' : productData.price.toString(),
                 validator: (value) {
                   if (value.isEmpty) {
                     return 'You must provide price';
@@ -100,6 +129,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
                 decoration: InputDecoration(labelText: 'Description'),
                 maxLines: 4,
                 keyboardType: TextInputType.multiline,
+                initialValue: _isNew ? '' : productData.description,
                 onSaved: (value) => description = value,
               ),
               Row(
@@ -129,6 +159,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
                       controller: _imageUrlController,
                       focusNode: _imageUrlFocusNode,
                       autovalidateMode: AutovalidateMode.onUserInteraction,
+                      // initialValue: _isNew ? '' : productData.imageUrl,
                       validator: (value) =>
                           value.isEmpty ? 'Image URL is must' : null,
                       onEditingComplete: () {
